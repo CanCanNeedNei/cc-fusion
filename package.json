@@ -1,6 +1,6 @@
 {
   "name": "cc-fusion",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Claude Code statusline: CCometixLine beauty + Claude HUD functionality",
   "type": "module",
   "main": "dist/index.js",
