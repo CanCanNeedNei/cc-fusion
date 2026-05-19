@@ -1,0 +1,2 @@
+{"file":".trellis/spec/backend/index.md","reason":"Release check should respect CLI/runtime quality expectations."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Verify npm test, git diff --check, npm pack --dry-run, and no bypassing failures."}
