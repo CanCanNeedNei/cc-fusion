@@ -61,6 +61,62 @@ test('transcript discovery prefers valid explicit path and parses transcript sta
   assert.equal(stats.lastEdit, '/tmp/source.ts');
 });
 
+test('completed task batch resets when a later task is created', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cc-fusion-task-batch-'));
+  const transcript = join(dir, 'completed-reset.jsonl');
+  writeFileSync(transcript, [
+    JSON.stringify({ type: 'tool_use', id: 'task-create-1', name: 'TaskCreate', input: { taskId: 1, subject: 'First batch task A' } }),
+    JSON.stringify({ type: 'tool_use', id: 'task-create-2', name: 'TaskCreate', input: { taskId: 2, subject: 'First batch task B' } }),
+    JSON.stringify({ type: 'tool_use', id: 'task-update-1', name: 'TaskUpdate', input: { taskId: 1, status: 'completed' } }),
+    JSON.stringify({ type: 'tool_use', id: 'task-update-2', name: 'TaskUpdate', input: { taskId: 2, status: 'completed' } }),
+    JSON.stringify({ type: 'tool_use', id: 'task-create-3', name: 'TaskCreate', input: { taskId: 3, subject: 'Second batch task' } }),
+  ].join('\n'));
+
+  const stats = parseTranscript(transcript);
+  assert.deepEqual(stats.todos, [
+    { id: 1, name: 'Second batch task', status: 'pending' },
+  ]);
+  assert.equal(stats.totalTodos, 1);
+  assert.equal(stats.doneTodos, 0);
+});
+
+test('unfinished task batch appends later task without reset', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cc-fusion-task-batch-'));
+  const transcript = join(dir, 'unfinished-append.jsonl');
+  writeFileSync(transcript, [
+    JSON.stringify({ type: 'tool_use', id: 'task-create-1', name: 'TaskCreate', input: { taskId: 1, subject: 'Done task' } }),
+    JSON.stringify({ type: 'tool_use', id: 'task-create-2', name: 'TaskCreate', input: { taskId: 2, subject: 'Pending task' } }),
+    JSON.stringify({ type: 'tool_use', id: 'task-update-1', name: 'TaskUpdate', input: { taskId: 1, status: 'completed' } }),
+    JSON.stringify({ type: 'tool_use', id: 'task-create-3', name: 'TaskCreate', input: { taskId: 3, subject: 'Appended task' } }),
+  ].join('\n'));
+
+  const stats = parseTranscript(transcript);
+  assert.deepEqual(stats.todos, [
+    { id: 1, name: 'Done task', status: 'done' },
+    { id: 2, name: 'Pending task', status: 'pending' },
+    { id: 3, name: 'Appended task', status: 'pending' },
+  ]);
+  assert.equal(stats.totalTodos, 3);
+  assert.equal(stats.doneTodos, 1);
+});
+
+test('task create result does not duplicate an already parsed task id', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cc-fusion-task-batch-'));
+  const transcript = join(dir, 'task-create-result-dedup.jsonl');
+  writeFileSync(transcript, [
+    JSON.stringify({ type: 'tool_use', id: 'task-create-1', name: 'TaskCreate', input: { taskId: 1, subject: 'First task' } }),
+    JSON.stringify({ type: 'tool_use', id: 'task-update-1', name: 'TaskUpdate', input: { taskId: 1, status: 'completed' } }),
+    JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'task-create-1', content: 'Task #1 created successfully' }] } }),
+  ].join('\n'));
+
+  const stats = parseTranscript(transcript);
+  assert.deepEqual(stats.todos, [
+    { id: 1, name: 'First task', status: 'done' },
+  ]);
+  assert.equal(stats.totalTodos, 1);
+  assert.equal(stats.doneTodos, 1);
+});
+
 test('transcript discovery falls back to inferred Claude project path', () => {
   const home = mkdtempSync(join(tmpdir(), 'cc-fusion-home-'));
   const previousHome = process.env.HOME;

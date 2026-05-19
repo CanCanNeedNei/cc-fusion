@@ -77,6 +77,21 @@ function textFromValue(value) {
     }
     return parts.length > 0 ? parts.join('\n') : undefined;
 }
+function shouldStartNewTaskBatch(todoMap) {
+    return todoMap.size > 0 && Array.from(todoMap.values()).every(todo => todo.status === 'done');
+}
+function addCreatedTask(todoMap, taskId, subject) {
+    if (todoMap.has(taskId))
+        return;
+    if (shouldStartNewTaskBatch(todoMap)) {
+        todoMap.clear();
+    }
+    todoMap.set(taskId, {
+        id: taskId,
+        name: subject.slice(0, 30),
+        status: 'pending',
+    });
+}
 function collectToolResultTexts(entry) {
     const results = [];
     const content = (entry.type === 'assistant' || entry.type === 'user' || entry.type === 'system')
@@ -139,11 +154,7 @@ export function parseTranscript(filePath, maxLines = 500) {
                 const subject = taskCreateSubjects.get(toolId);
                 if (!subject)
                     continue;
-                todoMap.set(taskId, {
-                    id: taskId,
-                    name: subject.slice(0, 30),
-                    status: 'pending',
-                });
+                addCreatedTask(todoMap, taskId, subject);
             }
             const toolUses = collectToolUses(entry);
             for (const tool of toolUses) {
@@ -188,11 +199,7 @@ export function parseTranscript(filePath, maxLines = 500) {
                         pendingTaskCreateToolIds.push(tool.id);
                         const taskId = parseTaskId(tool.input?.taskId ?? tool.input?.id);
                         if (taskId !== undefined) {
-                            todoMap.set(taskId, {
-                                id: taskId,
-                                name: subject.slice(0, 30),
-                                status: 'pending',
-                            });
+                            addCreatedTask(todoMap, taskId, subject);
                         }
                     }
                 }

@@ -86,6 +86,30 @@ function textFromValue(value: unknown): string | undefined {
   return parts.length > 0 ? parts.join('\n') : undefined;
 }
 
+type TodoItem = { id: number; name: string; status: 'done' | 'current' | 'pending' | 'future' };
+
+function shouldStartNewTaskBatch(todoMap: Map<number, TodoItem>): boolean {
+  return todoMap.size > 0 && Array.from(todoMap.values()).every(todo => todo.status === 'done');
+}
+
+function addCreatedTask(
+  todoMap: Map<number, TodoItem>,
+  taskId: number,
+  subject: string
+): void {
+  if (todoMap.has(taskId)) return;
+
+  if (shouldStartNewTaskBatch(todoMap)) {
+    todoMap.clear();
+  }
+
+  todoMap.set(taskId, {
+    id: taskId,
+    name: subject.slice(0, 30),
+    status: 'pending',
+  });
+}
+
 function collectToolResultTexts(entry: TranscriptEntry): Array<{ toolUseId?: string; text: string }> {
   const results: Array<{ toolUseId?: string; text: string }> = [];
   const content = (entry.type === 'assistant' || entry.type === 'user' || entry.type === 'system')
@@ -152,11 +176,7 @@ export function parseTranscript(filePath: string | null, maxLines: number = 500)
         const subject = taskCreateSubjects.get(toolId);
         if (!subject) continue;
 
-        todoMap.set(taskId, {
-          id: taskId,
-          name: subject.slice(0, 30),
-          status: 'pending',
-        });
+        addCreatedTask(todoMap, taskId, subject);
       }
 
       const toolUses = collectToolUses(entry);
@@ -205,11 +225,7 @@ export function parseTranscript(filePath: string | null, maxLines: number = 500)
 
             const taskId = parseTaskId(tool.input?.taskId ?? tool.input?.id);
             if (taskId !== undefined) {
-              todoMap.set(taskId, {
-                id: taskId,
-                name: subject.slice(0, 30),
-                status: 'pending',
-              });
+              addCreatedTask(todoMap, taskId, subject);
             }
           }
         }
