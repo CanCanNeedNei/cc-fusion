@@ -29,6 +29,7 @@ Use targeted stdin smoke tests when rendering behavior changes.
 - Keep visual theme behavior separate from preset/layout behavior. Themes live in TOML under `themes/`; presets live in JSON under `presets/`; renderer composition lives in `src/render.ts`.
 - Preserve display precision for renderer percentages until the renderer formats them. For Context usage, `calcContextPct` returns a clamped decimal percentage; color thresholds are green for `<60`, yellow for `>=60 && <80`, and red for `>=80`.
 - Keep transcript parsing bounded and tolerant. `src/transcript.ts` tail-reads JSONL and skips malformed lines.
+- Keep transcript-derived task aggregation batch-local: when all currently tracked tasks are `done`, the next distinct `TaskCreate` starts a fresh batch; if any tracked task is unfinished, later tasks append to the same batch. `TaskCreate` may be observed through both tool input and tool result text, so task IDs must be deduplicated before applying batch-reset logic.
 - Avoid dependencies unless clearly justified. Current runtime has no external dependencies; dev dependencies are TypeScript and Node types only.
 
 ---
